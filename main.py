@@ -28,7 +28,7 @@ RSS_FEED_URLS = [
 ]
 
 # ✅ List of models (distribute usage)
-AI_MODELS = ["llama3-8b-8192", "gemma-7b-it"]
+AI_MODELS = ["llama3-8b-8192", "gemma2-9b-it"]
 
 MAX_ARTICLES = 15
 # ====================
