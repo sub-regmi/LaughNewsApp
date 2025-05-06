@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import feedparser
 from newspaper import Article
 import requests
-from typing import List
 import random
+from typing import List
 
 app = FastAPI()
 
-# CORS setup
+# CORS for frontend/mobile
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==== CONFIG ====
+# ===== CONFIG =====
 GROQ_API_KEY = "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"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 STABILITY_API_KEY = "sk-CmryB7ap0s3JtoW6oKtHQnJN9mN6sUpphZDtzt8qChiYuwSt"
@@ -31,7 +31,7 @@ RSS_FEED_URLS = [
 
 AI_MODELS = ["llama3-8b-8192", "gemma2-9b-it"]
 MAX_ARTICLES = 15
-# ================
+# ===================
 
 def extract_article(url):
     try:
@@ -42,7 +42,7 @@ def extract_article(url):
     except:
         return None, None
 
-def turn_into_comedy(title, content, model_name):
+def turn_into_comedy(title, content, model):
     prompt = f"""Rewrite this news story as a funny sarcastic summary.\n\nTitle: {title}\n\nContent: {content}"""
 
     headers = {
@@ -51,7 +51,7 @@ def turn_into_comedy(title, content, model_name):
     }
 
     payload = {
-        "model": model_name,
+        "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.8
     }
@@ -67,12 +67,13 @@ def turn_into_comedy(title, content, model_name):
         else:
             return "⚠️ Unexpected API response."
     except Exception as e:
-        return f"❌ Exception occurred: {e}"
+        return f"❌ Exception: {str(e)}"
 
 def generate_image(prompt):
     headers = {
         "Authorization": f"Bearer {STABILITY_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
     }
 
     payload = {
@@ -87,23 +88,21 @@ def generate_image(prompt):
 
     try:
         response = requests.post(STABILITY_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        result = response.json()
-
-        # Return image URL or base64
-        if result.get("artifacts"):
-            base64_img = result["artifacts"][0]["base64"]
-            return f"data:image/png;base64,{base64_img}"
+        if response.status_code == 200:
+            data = response.json()
+            return data["artifacts"][0]["base64"]
         else:
-            return "❌ Failed to generate image"
+            print("Image Error:", response.status_code, response.text)
+            return None
     except Exception as e:
-        return f"❌ Stability AI error: {e}"
+        print(f"Image Generation Exception: {e}")
+        return None
 
 @app.get("/comedy")
-def get_comedy_articles(count: int = Query(10, description="Number of articles")):
+def get_comedy_articles(count: int = Query(10, description="Number of articles to fetch")):
     all_entries = []
-    for feed_url in RSS_FEED_URLS:
-        feed = feedparser.parse(feed_url)
+    for url in RSS_FEED_URLS:
+        feed = feedparser.parse(url)
         all_entries.extend(feed.entries)
 
     random.shuffle(all_entries)
@@ -113,24 +112,26 @@ def get_comedy_articles(count: int = Query(10, description="Number of articles")
 
     for i, entry in enumerate(selected_entries):
         title, content = extract_article(entry.link)
+
         if not content:
-            results.append({"index": i, "error": "Failed to extract content"})
+            results.append({
+                "index": i,
+                "error": "Failed to extract content",
+                "url": entry.link
+            })
             continue
 
-        selected_model = random.choice(AI_MODELS)
-        comedy = turn_into_comedy(title, content, selected_model)
-
-        # Generate image based on comedy content
-        image_data = generate_image(comedy[:100])  # Limit prompt length
+        model = MODEL_NAMES[i % len(MODEL_NAMES)]
+        comedy = turn_into_comedy(title, content, model)
+        image_base64 = generate_image(title)
 
         results.append({
             "index": i,
             "original_title": title,
             "original_content": content,
             "comedy_version": comedy,
-            "image": image_data,
-            "model_used": selected_model,
-            "source": entry.link
+            "image_base64": image_base64,
+            "source_url": entry.link
         })
 
     return results
