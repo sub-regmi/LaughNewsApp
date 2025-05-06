@@ -80,8 +80,8 @@ def generate_image(prompt):
         "text_prompts": [{"text": prompt, "weight": 1}],
         "cfg_scale": 7,
         "clip_guidance_preset": "FAST_BLUE",
-        "height": 512,
-        "width": 512,
+        "height": 1024,
+        "width": 1024,
         "samples": 1,
         "steps": 30
     }
