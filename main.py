@@ -4,13 +4,13 @@ import feedparser
 from newspaper import Article
 import requests
 from typing import List
+import random
 
 app = FastAPI()
 
-# Optional: CORS support for frontend/mobile app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # You can restrict to your app domain later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,9 +19,18 @@ app.add_middleware(
 # ====== CONFIG ======
 GROQ_API_KEY = "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"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-RSS_FEED_URL = "https://english.onlinekhabar.com/feed"
-MODEL_NAME = "llama3-8b-8192"  # or gemma-7b-it
-MAX_ARTICLES = 10
+
+# ✅ List of RSS feed URLs
+RSS_FEED_URLS = [
+    "https://english.onlinekhabar.com/feed",
+    "http://english.ratopati.com/rss/",
+    "https://techmandu.com/feed/"
+]
+
+# ✅ List of models (distribute usage)
+AI_MODELS = ["llama3-8b-8192", "gemma-7b-it"]
+
+MAX_ARTICLES = 15
 # ====================
 
 def extract_article(url):
@@ -33,8 +42,8 @@ def extract_article(url):
     except:
         return None, None
 
-def turn_into_comedy(title, content):
-    prompt = f"""Rewrite this news story as a funny sarcastic article\n\nTitle: {title}\n\nContent: {content}"""
+def turn_into_comedy(title, content, model_name):
+    prompt = f"""Rewrite this news story as a funny sarcastic summary\n\nTitle: {title}\n\nContent: {content}"""
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -42,7 +51,7 @@ def turn_into_comedy(title, content):
     }
 
     payload = {
-        "model": MODEL_NAME,
+        "model": model_name,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.8
     }
@@ -51,7 +60,6 @@ def turn_into_comedy(title, content):
         response = requests.post(GROQ_API_URL, headers=headers, json=payload)
         data = response.json()
 
-        # ✅ Improved error handling
         if "choices" in data:
             return data["choices"][0]["message"]["content"]
         elif "error" in data:
@@ -65,13 +73,21 @@ def turn_into_comedy(title, content):
         return "❌ Exception occurred while calling the comedy engine."
 
 @app.get("/comedy")
-def get_comedy_articles(count: int = Query(5, description="Number of news articles to convert")):
-    feed = feedparser.parse(RSS_FEED_URL)
-    entries = feed.entries[:min(count, len(feed.entries))]
+def get_comedy_articles(count: int = Query(10, description="Number of news articles to convert")):
+    all_entries = []
+
+    # ✅ Collect articles from all feeds
+    for feed_url in RSS_FEED_URLS:
+        feed = feedparser.parse(feed_url)
+        all_entries.extend(feed.entries)
+
+    # ✅ Shuffle entries to avoid bias
+    random.shuffle(all_entries)
+    selected_entries = all_entries[:min(count, len(all_entries))]
 
     results = []
 
-    for i, entry in enumerate(entries):
+    for i, entry in enumerate(selected_entries):
         title, content = extract_article(entry.link)
 
         if not content:
@@ -81,13 +97,17 @@ def get_comedy_articles(count: int = Query(5, description="Number of news articl
             })
             continue
 
-        comedy = turn_into_comedy(title, content)
+        # ✅ Use a random model from the list
+        selected_model = random.choice(AI_MODELS)
+        comedy = turn_into_comedy(title, content, selected_model)
 
         results.append({
             "index": i,
             "original_title": title,
             "original_content": content,
-            "comedy_version": comedy
+            "comedy_version": comedy,
+            "model_used": selected_model,
+            "source": entry.link
         })
-
+        #print(results)
     return results
