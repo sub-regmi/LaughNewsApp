@@ -121,7 +121,7 @@ def get_comedy_articles(count: int = Query(10, description="Number of articles t
             })
             continue
 
-        model = MODEL_NAMES[i % len(MODEL_NAMES)]
+        model = AI_MODELS[i % len(AI_MODELS)]
         comedy = turn_into_comedy(title, content, model)
         image_base64 = generate_image(title)
 
