@@ -77,7 +77,7 @@ def generate_image(prompt):
     }
 
     payload = {
-        "text_prompts": [{"text": prompt}],
+        "text_prompts": [{"text": prompt, "weight": 1}],
         "cfg_scale": 7,
         "clip_guidance_preset": "FAST_BLUE",
         "height": 512,
