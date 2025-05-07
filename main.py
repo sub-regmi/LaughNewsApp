@@ -45,7 +45,7 @@ def extract_article(url):
         return None, None
 
 def turn_into_comedy(title, content, model_name):
-    prompt = f"""Rewrite this news story as a funny sarcastic summary\n\nTitle: {title}\n\nContent: {content}"""
+    prompt = f"""Rewrite this news story as a short funny sarcastic summary\n\nTitle: {title}\n\nContent: {content}"""
 
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
