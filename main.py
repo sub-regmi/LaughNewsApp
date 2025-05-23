@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # ====== CONFIG ======
-GROQ_API_KEY = "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"
+GROQ_API_KEY = "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"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 HUGGINGFACE_API_KEY = "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"  # <== Replace with your Hugging Face token
